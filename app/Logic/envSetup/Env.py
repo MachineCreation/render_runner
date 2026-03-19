@@ -1,58 +1,59 @@
 # -------------------------------------------------------------------------------
-# Environment setuo
+# Environment setup
 # Joseph Egan
 # 2026-03-17
 # Sources: None
 # -------------------------------------------------------------------------------
-# Description: quick setup ui for environment variables
+# Description: quick setup class for environment variables needed for the
+# application to run.
 
 # Local imports
-import app.Logic.processing.validations as val
 from app.Logic.processing.helpers import non_empty
 
 # python imports
 from pathlib import Path
 
+
 class Env:
-    
+
     required_vars = {
         "db_host": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter Database host',
             'valid_func': non_empty},
         "db_port": {
-            'type':int
+            'type': int
             },
         "db_name": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter Database name',
             'valid_func': non_empty
             },
         "db_user": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter Database user name',
             'valid_func': non_empty
             },
         "db_password": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter Database password',
             'valid_func': non_empty
             },
         "ssh_host": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter SSH host',
             'valid_func': non_empty
             },
         "ssh_port": {
-            'type':int
+            'type': int
             },
         "ssh_user": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter SSH user name',
             'valid_func': non_empty
             },
         "ssh_passphrase": {
-            'type':str,
+            'type': str,
             'prompt': 'Enter SSH passphrase',
             'valid_func': non_empty
             },
@@ -67,7 +68,7 @@ class Env:
                  ssh_port: int,
                  ssh_user: str,
                  ssh_passphrase: str
-                ):
+                 ):
         self.__db_host = db_host
         self.__db_port = db_port
         self.__db_name = db_name

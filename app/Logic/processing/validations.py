@@ -2,7 +2,8 @@
 # Input validations
 # Joseph Egan
 # 2026-03-18
-# Sources: https://github.com/MachineCreation/TMDb_listing_function/blob/main/UI/input_validations.py
+# Sources:
+# https://github.com/MachineCreation/TMDb_listing_function/blob/main/UI/input_validations.py
 # -------------------------------------------------------------------------------
 # Description: simple input validations
 
@@ -12,9 +13,10 @@ import app.Logic.processing.exceptions as ie
 # python imports
 from typing import Callable
 
+
 def input_port(
     prompt: str = "Enter a valid port number:",
-    e_message: str = "Invalid port. Please enter a valid port number. (0 - 65535)"
+    e_message: str = "Please enter a valid port number. (0 - 65535)"
         ) -> int:
     '''
     Prompts user for a whole number input with optional specified bounds.
@@ -27,18 +29,21 @@ def input_port(
             value = input(prompt + " ")    # get input
             # check for float value; don't assume truncated value is
             # acceptable
-            
+
             if "." in value:
                 raise ValueError
             value = int(value)  # convert value to int
-            if 0 > value > 65535:
+
+            if 0 > value or value > 65535:
                 raise ValueError
+
             return value
 
         except ValueError:
             print(e_message)
         except ie.RangeError as e:
             print_error(e, e_message)
+
 
 # -------------------
 def input_string(prompt: str = "Please enter a word or phrase",
@@ -55,7 +60,6 @@ def input_string(prompt: str = "Please enter a word or phrase",
         except ValueError as e:
             print(f"Invalid input: {e}")
 
-        
 
 # -------------------
 def print_error(error: Exception,
@@ -72,3 +76,20 @@ def print_error(error: Exception,
         print(error.args[0])
 
 
+# -------------------
+def input_y_or_n(
+    prompt: str = "Please enter y(Yes) or n(No)",
+    e_message: str = "Value must be Y, N, Yes, or No"
+        ) -> bool:
+    '''
+    Prompts user for Y or N.
+    :param prompt: Prompt string shown to the user
+    :param e_message: Error message shown on invalid input
+    :return: True if user answered yes, False if no
+    '''
+    accepted = ['y', 'yes', 'n', 'no']
+    while True:
+        value = input(prompt + ' ').lower()
+        if value in accepted:
+            return value in ['y', 'yes']
+        print(f'Invalid Entry: {e_message}')

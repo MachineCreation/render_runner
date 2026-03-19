@@ -7,12 +7,14 @@
 # Description: main function
 
 # Local imports
-from app.UI.EnvSetup.make_env import make_env
+# from app.UI.
 
 # python imports
 
+
 def main():
-    make_env()
+    pass
+
 
 if __name__ == '__main__':
     main()

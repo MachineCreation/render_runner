@@ -12,6 +12,8 @@ from app.Logic.processing.exceptions import RootPathError
 # python imports
 from pathlib import Path
 
+
+# -------------------
 def check_env():
 
     root_path_name = 'render_runner'
@@ -26,7 +28,9 @@ def check_env():
     # check if env exists
     return search_for_env(project_root)
 
-def get_project_root(start_path:Path, root_path_name: str):
+
+# -------------------
+def get_project_root(start_path: Path, root_path_name: str):
 
     # set path tracing start
     current_directory = start_path
@@ -42,6 +46,8 @@ def get_project_root(start_path:Path, root_path_name: str):
         else:
             return current_directory
 
+
+# -------------------
 def search_for_env(root_path: Path):
     env_file = root_path / '.env'
 
