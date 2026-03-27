@@ -22,6 +22,12 @@ class RangeError(Exception):
     '''
 
 
+class DatabaseConnectionError(Exception):
+    '''
+    Raised when database connection does not match database connection type.
+    '''
+
+
 class JobRunnerError(Exception):
     """Base exception for the render pipeline."""
 

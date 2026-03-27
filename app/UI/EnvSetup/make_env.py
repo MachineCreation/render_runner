@@ -14,6 +14,7 @@ from app.Logic.envSetup.Env import Env
 
 # python imports
 from pathlib import Path
+import logging
 
 
 def setup_env_ui():
@@ -26,8 +27,7 @@ def setup_env_ui():
 
         if setup and file_path:
             make_env(file_path)
-            # add a finished message here <----------------------------------------------------------
-            return
+            print(f' .env file created at {file_path}')
         if setup and not file_path:
             print('Proper file path not found.')
             print(
@@ -37,6 +37,7 @@ def setup_env_ui():
                 'before creating your virtual environment'
                 )
         return
+    print('.env file found in program root')
 
 
 # ----------
@@ -57,6 +58,7 @@ def make_env(file_path: Path):
 
     file_path_check, env_exists = check_env()
     if env_exists and file_path_check:
+        logging.getLogger(__name__).info('Environment variables created')
         env.delete_self()
 
 
