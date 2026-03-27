@@ -36,12 +36,14 @@ class Database:
         "postgresql": [
             "postgresql_connection",
             "postgres_save_job",
-            "postgres_find_job"
+            "postgres_find_job",
+            "postgres_get_next_id"
             ],
         "sqlite": [
             "sqlite_connection",
             "sqlite_save_job",
-            "sqlite_find_job"
+            "sqlite_find_job",
+            "sqlite_get_next_id"
             ],
     }
 
@@ -51,7 +53,7 @@ class Database:
     # --------------
     def connect(self):
         try:
-            method_name = self.__db_types.get(DB_TYPE)[0]
+            method_name = self.__db_types[DB_TYPE][0]
 
             if method_name is None:
                 self.__logger.error("Unsupported database type: %s", DB_TYPE)
@@ -127,46 +129,30 @@ class Database:
         else:
             self.__logger.info("close_cursor called with no active cursor.")
 
-
-    # --------------
-    def get_next_id(self) -> int:
-        '''
-        query database for next available id
-        '''
-        # self.connect()
-        # self.get_cursor()
-
-        # query = '''
-        # SELECT TOP 1 job_id
-        # FROM jobs
-        # '''
-
-        # self.cursor.execute(query)
-        # self.connection.commit()
-        # response = self.cursor.fetchone()
-        # return response[0] + 1
-        return 2178
-
     # ---------------
     def delete_db_object(self):
         del self
-
 
 # --------------------------------- routers ----------------------------------
     def save_job(self, job: dict):
         '''
         route to best save job function return None
         '''
-        method_name = self.__db_types.get(DB_TYPE)[1]
+        method_name = self.__db_types[DB_TYPE][1]
         method = self.__getattribute__(method_name)
         method(job)
 
-
     #----------------------
     def find_job(self, id):
-        method_name = self.__db_types.get(DB_TYPE)[2]
+        method_name = self.__db_types[DB_TYPE][2]
         method = self.__getattribute__(method_name)
         method(id)
+
+    #----------------------
+    def get_next_id(self):
+        method_name = self.__db_types[DB_TYPE][3]
+        method = self.__getattribute__(method_name)
+        return method()
 
 # --------------------------------- properties -------------------------------
     @property
@@ -176,7 +162,6 @@ class Database:
     @property
     def connection(self):
         return self.__connection
-
 
 # -----------------------------PostgreSQL-------------------------------------
     # ---------------
@@ -218,20 +203,119 @@ class Database:
             self.__logger.exception("Exception in PostgreSQL connection.")
             return False
 
-
-    #---------------------
+    # ----------------
     def postgres_save_job(self, job: dict):
         '''
-        save job
+        save new or existing job
+        '''
+        cols = ", ".join(job.keys())
+        col_placeholders = ", ".join("%s" for _ in job)
+        self.connect()
+        self.get_cursor()
+
+        cursor = self.cursor
+        connection = self.connection
+
+        if cursor is None or connection is None:
+            self.__logger.error("Cannot save job: cursor or connection is not available.")
+            self.close_cursor()
+            return
+
+        response = f'''
+        INSERT INTO jobs({cols})
+        VALUES ({col_placeholders})
         '''
 
+        cursor.execute(
+            response,
+            tuple(job.values())
+        )
+        connection.commit()
+        self.close_cursor()
 
-    #---------------------
+    # ----------------
     def postgres_find_job(self, id: int):
+        from app.Logic.Jobs.Job import Job
+
+        self.connect()
+        connection = self.connection
+
+        if connection is None:
+            self.__logger.error("Cannot find job: database connection is not available.")
+            return False, None
+
+        if not isinstance(connection, psy.Connection):
+            self.__logger.error(
+                "Cannot find job: expected PostgreSQL connection, got %s.",
+                type(connection),
+            )
+            return False, None
+
+        self.get_cursor()
+        cursor = self.cursor
+
+        if cursor is None:
+            self.__logger.error("Cannot find job: database cursor is not available.")
+            return False, None
+
+        query = '''
+        SELECT *
+        FROM jobs
+        WHERE job_id = %s
         '''
-        find job in postgres sql
+
+        cursor.execute(query, (id,))
+        response = cursor.fetchone()
+
+        if response is None:
+            self.close_cursor()
+            return False, None
+
+        description = cursor.description
+
+        if description is None:
+            self.__logger.error("Cannot map PostgreSQL row: cursor description is unavailable.")
+            self.close_cursor()
+            return False, None
+
+        columns = [column[0] for column in description]
+        row_dict = dict(zip(columns, response))
+
+        self.close_cursor()
+        return True, Job.from_dict(row_dict)
+
+    # --------------
+    def postgres_get_next_id(self) -> int:
         '''
-        
+        query database for next available id
+        '''
+        self.connect()
+        self.get_cursor()
+
+        cursor = self.cursor
+        connection = self.connection
+
+        if cursor is None or connection is None:
+            self.__logger.error("Cannot get next ID: cursor or connection is not available.")
+            return 0
+
+        query = '''
+        SELECT job_id
+        FROM jobs
+        ORDER BY job_id DESC
+        LIMIT 1
+        '''
+
+        cursor.execute(query)
+        response = cursor.fetchone()
+
+        self.close_cursor()
+
+        if response is None:
+            self.__logger.warning("No jobs found in database.")
+            return 1
+
+        return response[0] + 1
 
 # ---------------------------------SQLite-------------------------------------
     # ----------------
@@ -275,6 +359,14 @@ class Database:
         col_placeholders = ', '.join('?' for _ in job)
         self.connect()
         self.get_cursor()
+
+        cursor = self.cursor
+        connection = self.connection
+
+        if cursor is None or connection is None:
+            self.__logger.error("Cannot save job: cursor or connection is not available.")
+            self.close_cursor()
+            return
         
         # save new job
         response = f'''
@@ -282,30 +374,80 @@ class Database:
         VALUES ({col_placeholders})
         '''
 
-        self.cursor.execute(
+        cursor.execute(
             response,
             tuple(job.values())
         )
-        self.connection.commit()
+        connection.commit()
         self.close_cursor()
-
 
     # ----------------
     def sqlite_find_job(self, id: int):
         from app.Logic.Jobs.Job import Job
 
         self.connect()
-        self.connection.row_factory = sql.Row
+        connection = self.connection
+
+        if connection is None:
+            self.__logger.error("Cannot find job: database connection is not available.")
+            return False, None
+
+        if not isinstance(connection, sql.Connection):
+            self.__logger.error(
+                "Cannot find job: expected SQLite connection, got %s.",
+                type(connection),
+            )
+            return False, None
+
+        connection.row_factory = sql.Row
         self.get_cursor()
+
+        cursor = self.cursor
+
+        if cursor is None:
+            self.__logger.error("Cannot find job: database cursor is not available.")
+            return False, None
 
         query = '''
         SELECT *
         FROM jobs
         WHERE job_id = ?
         '''
-        self.cursor.execute(query, (id,))
-        response = self.cursor.fetchone()
+        cursor.execute(query, (id,))
+        response = cursor.fetchone()
         self.close_cursor()
         if response:
-            return True, Job.from_dict(response)
+            return True, Job.from_dict(dict(response))
         return False, None
+
+    # --------------
+    def sqlite_get_next_id(self) -> int:
+        '''
+        query database for next available id
+        '''
+        self.connect()
+        self.get_cursor()
+
+        cursor = self.cursor
+        connection = self.connection
+
+        if cursor is None or connection is None:
+            self.__logger.error("Cannot get next ID: cursor or connection is not available.")
+            return 0
+
+        query = '''
+        SELECT job_id
+        FROM jobs
+        ORDER BY job_id DESC
+        LIMIT 1
+        '''
+
+        cursor.execute(query)
+        connection.commit()
+        response = cursor.fetchone()
+        
+        if response is None:
+            self.__logger.warning("No jobs found in database.")
+            return 1
+        
+        return response[0] + 1

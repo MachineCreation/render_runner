@@ -11,6 +11,7 @@
 # python imports
 from dataclasses import dataclass
 
+
 @dataclass
 class OutputFileRecord:
     file_name: str

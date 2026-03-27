@@ -27,7 +27,7 @@ def input_port(
     '''
     while True:
         try:
-            value = input(prompt + " ")    # get input
+            value = input(prompt + "\n ")    # get input
             # check for float value; don't assume truncated value is
             # acceptable
 
@@ -52,7 +52,7 @@ def input_string(prompt: str = "Please enter a word or phrase",
                  "provided conditions.",
                  valid_func: Callable[[str], None] | None = None):
     while True:
-        value = input(prompt + " ").strip()
+        value = input(prompt + "\n ").strip()
 
         try:
             if valid_func:
@@ -90,7 +90,7 @@ def input_y_or_n(
     '''
     accepted = ['y', 'yes', 'n', 'no']
     while True:
-        value = input(prompt + ' ').lower()
+        value = input(prompt + '\n ').lower()
         if value in accepted:
             return value in ['y', 'yes']
         print(f'Invalid Entry: {e_message}')
@@ -121,7 +121,7 @@ def input_int(
 
     while True:
         try:
-            value = input(prompt + " ")    # get input
+            value = input(prompt + "\n ")    # get input
             # check for float value; don't assume truncated value is
             # acceptable
             if "." in value:
@@ -282,7 +282,7 @@ def select_item(
     while True:
         for idx, option in enumerate(display_options):
             print(f'{idx + 1}. {option}')
-        value = input_string(prompt + " \n").lower().strip()
+        value = input_string(prompt).lower().strip()
 
         # return original value for key if map
         if map is not None:

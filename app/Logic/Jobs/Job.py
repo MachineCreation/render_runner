@@ -23,9 +23,9 @@ import logging
 class Job:
 
     __job_name: str
-    __job_id: int
+    __job_id: int | None
     __prompt_text: str
-    __workflow_template_path: str
+    __workflow_template_path: Path
     __status: str
     __created_at: datetime
     __updated_at: datetime
@@ -41,11 +41,10 @@ class Job:
             self,
             job_name: str,
             prompt_text: str,
-            workflow_template_path: str,
+            workflow_template_path: Path,
             length: timedelta | None = None,
             logger: logging.Logger | None = None,
             ):
-        from app.Data.Database import Database
         self.__job_name = job_name
         self.__job_id = None
         self.__prompt_text = prompt_text
@@ -57,30 +56,31 @@ class Job:
 
         self.log_job()
 
-        if length != None:
+        if length is not None:
             self.length = length
 
 
 # --------------------------------- properties -------------------------------
-    
-    # --------------------
+
     @property
-    def length(self):
+    def length(self) -> timedelta | None:
         '''
         optional length used for animation workflows
         '''
         return self.__animation_length
-    
+
     @length.setter
     def length(self, length: timedelta):
         self.__animation_length = length
-
 
     # --------------------
     @property
     def job_id(self):
         return self.__job_id
-        
+    
+    @job_id.setter
+    def job_id(self, value):
+        self.__job_id = value
 
     # --------------------
     @property
@@ -89,7 +89,6 @@ class Job:
         generated file name for completed generations
         '''
         return self.__output_filename
-    
 
     # --------------------
     @property
@@ -98,7 +97,6 @@ class Job:
         path to the remote file on remote target
         '''
         return self.__remote_output_path
-    
 
     # --------------------
     @property
@@ -107,7 +105,6 @@ class Job:
         remote(cloud) upload target
         '''
         return self.__remote_upload_target
-    
 
     # --------------------
     @property
@@ -117,13 +114,11 @@ class Job:
         '''
         return self.__error_message
 
-
 # ------------------------------ UI functions ------------------------------
     def log_job(self):
         # from models.Database import Database
         user = get_user()
         self.__logger.info(f'Job {self.__job_id} created by {user}')
-
 
     # --------------------
     def print_job(self):
@@ -134,21 +129,22 @@ class Job:
             status_color = 'green'
         else:
             status_color = 'red'
+        length_text = str(self.length)
         print(
             f'{color_text(self.__job_name, 'magenta')} | '
             f'{self.__job_id} | '
             f'{color_text(self.__status, status_color)} | '
-            f'{color_text(self.length, 'cyan')}')
-
+            f'{color_text(length_text, 'cyan')}')
 
 # --------------------------------- service functions ------------------------
     def save_job(self, db: Database):
         '''
         write the job to the database
         '''
+        if self.job_id is None:
+            self.job_id = db.get_next_id()
         job = self.to_dict()
         db.save_job(job)
-
 
     # --------------------
     def claim_job(self):
@@ -156,20 +152,17 @@ class Job:
         claim job
         '''
 
-
     # --------------------
     def complete_job(self):
         '''
         complete job
         '''
 
-
     # --------------------
     def abort_job(self):
         '''
         abort job
         '''
-
 
 # --------------------------------- data conversion --------------------------
     def to_dict(self):
@@ -190,7 +183,6 @@ class Job:
             'remote_upload_target': self.__remote_upload_target,
             'error_message': self.__error_message
         }
-    
 
     # --------------------
     @staticmethod
