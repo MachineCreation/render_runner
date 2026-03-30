@@ -162,6 +162,93 @@ class Database:
     @property
     def connection(self):
         return self.__connection
+    
+# --------------------------------- shared sql -------------------------------
+    def poll_queue(self):
+        '''
+        call the database and search for queued jobs
+        '''
+        from app.Logic.Jobs.Job import Job
+        try:
+            self.connect()
+            self.get_cursor()
+            print(f'{"getting job" if self. cursor else "no cursor"}')
+
+            query = '''
+            UPDATE jobs
+            SET status = 'running',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE job_id = (
+                SELECT job_id
+                FROM jobs
+                WHERE status = 'queued'
+                ORDER BY created_at
+                LIMIT 1
+            )
+            RETURNING *;
+            '''
+
+            self.cursor.execute(query)
+            response = self.cursor.fetchone()
+            self.connection.commit()
+            
+            if response:
+                print('got row')
+
+            # convert rows
+            row_dict = self.row_to_dict(response)
+
+            self.close_connection()
+
+            return Job.from_dict(row_dict) if row_dict else None
+            
+
+        except Exception as e:
+            self.__logger.exception(e)
+
+    #----------------------
+    def update_job(self, job: dict) -> bool:
+        self.connect()
+        self.get_cursor()
+
+        cursor = self.cursor
+        connection = self.connection
+
+        if cursor is None or connection is None:
+            self.__logger.error("Cannot update job: cursor or connection is not available.")
+            self.close_cursor()
+            return False
+
+        job_id = job.get("job_id")
+        if job_id is None:
+            self.__logger.error("Cannot update job: job_id is missing.")
+            self.close_cursor()
+            return False
+
+        update_fields = {key: value for key, value in job.items() if key != "job_id"}
+
+        if not update_fields:
+            self.__logger.error("Cannot update job: no fields provided to update.")
+            self.close_cursor()
+            return False
+
+        # dynamic placeholders
+        ph = '?' if DB_TYPE == 'sqlite' else '%s'
+        set_clause = ", ".join(f"{column_name} = {ph}" for column_name in update_fields.keys())
+
+        query = f"""
+        UPDATE jobs
+        SET {set_clause}
+        WHERE job_id = {ph}
+        """
+
+        values = tuple(update_fields.values()) + (job_id,)
+
+        cursor.execute(query, values)
+        connection.commit()
+        self.close_cursor()
+
+        return True
 
 # -----------------------------PostgreSQL-------------------------------------
     # ---------------
@@ -206,7 +293,7 @@ class Database:
     # ----------------
     def postgres_save_job(self, job: dict):
         '''
-        save new or existing job
+        save new job
         '''
         cols = ", ".join(job.keys())
         col_placeholders = ", ".join("%s" for _ in job)
@@ -270,19 +357,13 @@ class Database:
         if response is None:
             self.close_cursor()
             return False, None
-
-        description = cursor.description
-
-        if description is None:
-            self.__logger.error("Cannot map PostgreSQL row: cursor description is unavailable.")
-            self.close_cursor()
-            return False, None
-
-        columns = [column[0] for column in description]
-        row_dict = dict(zip(columns, response))
+        
+        row_dict = self.row_to_dict(response)
 
         self.close_cursor()
-        return True, Job.from_dict(row_dict)
+        if row_dict:
+            return True, Job.from_dict(row_dict)
+        return False, None
 
     # --------------
     def postgres_get_next_id(self) -> int:
@@ -399,7 +480,6 @@ class Database:
             )
             return False, None
 
-        connection.row_factory = sql.Row
         self.get_cursor()
 
         cursor = self.cursor
@@ -415,9 +495,12 @@ class Database:
         '''
         cursor.execute(query, (id,))
         response = cursor.fetchone()
+
+        # convert rows
+        row_dict = self.row_to_dict(response)
         self.close_cursor()
-        if response:
-            return True, Job.from_dict(dict(response))
+        if row_dict:
+            return True, Job.from_dict(row_dict)
         return False, None
 
     # --------------
@@ -451,3 +534,40 @@ class Database:
             return 1
         
         return response[0] + 1
+    
+    #----------------------
+    def row_to_dict(self, response):
+        '''
+        convert rows to dict for object construction
+        '''
+        description = self.cursor.description
+
+        if description is None:
+            self.__logger.error("Cannot map SQL row: cursor description is unavailable.")
+            self.close_cursor()
+            return False, None
+
+        columns = [column[0] for column in description]
+        try:
+            row_dict = dict(zip(columns, response))
+        except TypeError:
+            return None
+
+        return row_dict
+
+# --------------------------------- testing ---------------------------------
+    def reset_db(self):
+
+        self.connect()
+        self.get_cursor()
+
+        query = '''
+        UPDATE jobs
+        SET status = 'queued'
+        WHERE job_id NOT NULL
+        '''
+
+        self.cursor.execute(query)
+        self.connection.commit()
+
+        self.close_connection()

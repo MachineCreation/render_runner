@@ -37,7 +37,7 @@ def rr_service() -> None:
 
     try:
         while running and worker.is_running:
-            worker.run_idle_cycle(sleep_seconds=2.0)
+            worker.run_idle_cycle(sleep_seconds=10)
 
     except Exception:
         logger.exception("Unhandled exception in Render_runner service loop.")

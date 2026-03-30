@@ -81,6 +81,15 @@ class Job:
     @job_id.setter
     def job_id(self, value):
         self.__job_id = value
+    
+    # --------------------
+    @property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, status: str):
+        self.__status = status
 
     # --------------------
     @property
@@ -89,6 +98,10 @@ class Job:
         generated file name for completed generations
         '''
         return self.__output_filename
+    
+    @output_file.setter
+    def output_file(self, filename: str):
+        self.__output_filename = filename
 
     # --------------------
     @property
@@ -98,6 +111,10 @@ class Job:
         '''
         return self.__remote_output_path
 
+    @remote_path.setter
+    def remote_path(self, path: str):
+        self.__remote_output_path = path
+
     # --------------------
     @property
     def remote_target(self):
@@ -106,6 +123,10 @@ class Job:
         '''
         return self.__remote_upload_target
 
+    @remote_target.setter
+    def remote_target(self, target: str):
+        self.__remote_upload_target = target
+
     # --------------------
     @property
     def error(self):
@@ -113,6 +134,10 @@ class Job:
         recorded error for failed render jobs
         '''
         return self.__error_message
+
+    @error.setter
+    def error(self, message: str):
+        self.__error_message = message
 
 # ------------------------------ UI functions ------------------------------
     def log_job(self):
@@ -147,22 +172,16 @@ class Job:
         db.save_job(job)
 
     # --------------------
-    def claim_job(self):
+    def finished_job(
+            self,
+            db: Database):
         '''
-        claim job
+        change job status
         '''
+        self.__updated_at = datetime.now(ZoneInfo("America/Los_Angeles"))
+        update = db.update_job(self.to_dict())
+        return update
 
-    # --------------------
-    def complete_job(self):
-        '''
-        complete job
-        '''
-
-    # --------------------
-    def abort_job(self):
-        '''
-        abort job
-        '''
 
 # --------------------------------- data conversion --------------------------
     def to_dict(self):
